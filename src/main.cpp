@@ -8,7 +8,9 @@
 // 如果节点类在单独头里：#include "telemetry_streamer_odom/telemetry_streamer_node.hpp"
 // 本示例里节点类在 src/telemetry_streamer_node.cpp 内部声明并编译到库中，
 // 这里直接在 main 里 forward-declare（若需要的话）。
-class TelemetryStreamerNode;  // 如果你把类放到了独立头里，就删掉这行并改用那个头
+//class TelemetryStreamerNode;  // 如果你把类放到了独立头里，就删掉这行并改用那个头
+#include "telemetry_streamer_odom/telemetry_streamer_node.hpp"  // <-- 添加这个头文件
+
 
 int main(int argc, char **argv)
 {
