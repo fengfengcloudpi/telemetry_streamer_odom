@@ -1,10 +1,10 @@
 #include <rclcpp/rclcpp.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-#include "telemetry_streamer_odom/config.hpp"
+//#include "telemetry_streamer_odom/config.hpp"
 
 // 你的节点类头（保持与你的实现一致）
-#include "telemetry_streamer_odom/protocol.hpp"          // 仅为确保链接库加载无误，可选
+//#include "telemetry_streamer_odom/protocol.hpp"          // 仅为确保链接库加载无误，可选
 // 如果节点类在单独头里：#include "telemetry_streamer_odom/telemetry_streamer_node.hpp"
 // 本示例里节点类在 src/telemetry_streamer_node.cpp 内部声明并编译到库中，
 // 这里直接在 main 里 forward-declare（若需要的话）。
