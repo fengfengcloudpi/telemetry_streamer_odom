@@ -6,7 +6,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
-find_package(tinyxml2 REQUIRED) 
+find_package(tinyxml2_vendor  REQUIRED) 
 # 如果你的 build_stream_frame(...) 在单独的 protocol.cpp 里，
 # 也要把它加进下面的源文件列表
 # 同理，如果你还有别的 .cpp 文件（比如 utils.cpp），也要一起列出来
@@ -23,7 +23,7 @@ ament_target_dependencies(telemetry_streamer_odom_node
     rclcpp
     nav_msgs
     ament_index_cpp
-    tinyxml2               
+    tinyxml2_vendor                
 )
 
 # 3. 头文件路径 (include/ 目录里是我们的 .hpp)
@@ -33,7 +33,7 @@ target_include_directories(telemetry_streamer_odom_node PUBLIC
 )
 
 target_link_libraries(telemetry_streamer_odom_node
-    tinyxml2               #有的环境下这句是必须的
+    tinyxml2::tinyxml2               #有的环境下这句是必须的
 )
 # 4. 安装可执行文件：colcon build 之后可以 ros2 run
 install(TARGETS telemetry_streamer_odom_node
