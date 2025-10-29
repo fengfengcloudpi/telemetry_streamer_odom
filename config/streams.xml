@@ -1,0 +1,23 @@
+<streams version="1.0">
+  <network bind_ip="0.0.0.0"
+           dest_ip="192.168.1.50"
+           port="50200"
+           base_tick_ms="10"
+           mtu="1200"/>
+
+  <stream id="1201"
+          name="odom"
+          topic="/odom"
+          type="nav_msgs/Odometry"
+          period_ms="50"
+          phase_ms="0"
+          enable="true">
+    <slots ints="0" floats="6" strings="0"/>
+    <map kind="float"  index="0" path="pose.pose.position.x"/>
+    <map kind="float"  index="1" path="pose.pose.position.y"/>
+    <map kind="float"  index="2" path="pose.pose.orientation.yaw"/>
+    <map kind="float"  index="3" path="twist.twist.linear.x"/>
+    <map kind="float"  index="4" path="twist.twist.linear.y"/>
+    <map kind="float"  index="5" path="twist.twist.angular.z"/>
+  </stream>
+</streams>

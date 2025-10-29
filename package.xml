@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>telemetry_streamer_odom</name>
+  <version>0.1.0</version>
+  <description>
+    UDP telemetry streamer for /odom with global tick shaping.
+    Loads streams.xml via ament_index_cpp and sends frames over UDP.
+  </description>
+
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <author email="you@example.com">Your Name</author>
+  <license>MIT</license>
+
+  <!-- Build system -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Build & Run deps -->
+  <depend>rclcpp</depend>
+  <depend>nav_msgs</depend>
+  <depend>tinyxml2</depend>
+  <depend>ament_index_cpp</depend>
+
+  <!-- (可选) 测试依赖
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  -->
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
