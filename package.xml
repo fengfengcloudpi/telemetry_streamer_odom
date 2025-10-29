@@ -5,6 +5,7 @@
   <description>
     UDP telemetry streamer for /odom with global tick shaping.
     Loads streams.xml via ament_index_cpp and sends frames over UDP.
+    Uses tinyxml2 via tinyxml2_vendor.
   </description>
 
   <maintainer email="you@example.com">Your Name</maintainer>
@@ -14,13 +15,15 @@
   <!-- Build system -->
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <!-- Build & Run deps -->
+  <!-- ROS/ament deps -->
   <depend>rclcpp</depend>
   <depend>nav_msgs</depend>
-  <depend>tinyxml2</depend>
   <depend>ament_index_cpp</depend>
 
-  <!-- (可选) 测试依赖
+  <!-- Vendorized tinyxml2 (provides tinyxml2::tinyxml2 CMake target) -->
+  <depend>tinyxml2_vendor</depend>
+
+  <!-- (Optional) tests
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
   -->
