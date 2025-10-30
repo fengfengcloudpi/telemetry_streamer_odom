@@ -5,19 +5,22 @@
            base_tick_ms="10"
            mtu="1200"/>
 
-  <stream id="1201"
-          name="odom"
-          topic="/odom"
-          type="nav_msgs/Odometry"
-          period_ms="50"
-          phase_ms="0"
-          enable="true">
-    <slots ints="0" floats="6" strings="0"/>
-    <map kind="float"  index="0" path="pose.pose.position.x"/>
-    <map kind="float"  index="1" path="pose.pose.position.y"/>
-    <map kind="float"  index="2" path="pose.pose.orientation.yaw"/>
-    <map kind="float"  index="3" path="twist.twist.linear.x"/>
-    <map kind="float"  index="4" path="twist.twist.linear.y"/>
-    <map kind="float"  index="5" path="twist.twist.angular.z"/>
+  <!-- ODOM -->
+  <stream topic="/odom" enable="true" period_ms="50" phase_ms="0" id="1" name="odom_stream" n_floats="5">
+    <mapping kind="float" index="0" path="pose.x"/>
+    <mapping kind="float" index="1" path="pose.y"/>
+    <mapping kind="float" index="2" path="orientation.yaw"/>
+    <mapping kind="float" index="3" path="twist.linear.x"/>
+    <mapping kind="float" index="4" path="twist.angular.z"/>
+  </stream>
+
+  <!-- IMU -->
+  <stream topic="/imu" enable="true" period_ms="20" phase_ms="0" id="2" name="imu_stream" n_floats="6">
+    <mapping kind="float" index="0" path="orientation.roll"/>
+    <mapping kind="float" index="1" path="orientation.pitch"/>
+    <mapping kind="float" index="2" path="orientation.yaw"/>
+    <mapping kind="float" index="3" path="gyro.x"/>
+    <mapping kind="float" index="4" path="gyro.y"/>
+    <mapping kind="float" index="5" path="accel.z"/>
   </stream>
 </streams>

@@ -2,17 +2,16 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <sensor_msgs/msg/imu.hpp>          // ✅ 新增
 #include <vector>
 #include <string>
 #include <mutex>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-// =================== 配置结构体 ===================
-// 这些来自你的 config.hpp，如果你已有就保持一致
-
+// ---------------- 配置结构（保持你现有定义即可） ----------------
 struct FieldMapping {
-    std::string kind;   // "float" 等
+    std::string kind;   // "float", ...
     int index;
     std::string path;
 };
@@ -39,8 +38,7 @@ struct FullConfig {
     std::vector<StreamSpec> streams;
 };
 
-// =================== 运行时结构 ===================
-
+// ---------------- 运行时结构 ----------------
 struct StreamRuntime {
     const StreamSpec* spec = nullptr;
     int step = 1;
@@ -54,44 +52,53 @@ struct OdomCache {
     bool has = false;
 };
 
-// =================== 主节点类 ===================
+// ✅ 新增：IMU 缓存
+struct ImuCache {
+    std::mutex mtx;
+    sensor_msgs::msg::Imu last{};
+    bool has = false;
+};
 
+// ---------------- 主节点类 ----------------
 class TelemetryStreamerNode : public rclcpp::Node
 {
 public:
     explicit TelemetryStreamerNode(const FullConfig &cfg);
     ~TelemetryStreamerNode();
 
-    // ========== 新增声明 ==========
-    // 线程安全复制缓存
+    // 拷贝缓存
     nav_msgs::msg::Odometry copyOdom();
+    sensor_msgs::msg::Imu   copyImu();    // ✅ 新增
 
-    // /odom 专用字段提取函数
+    // 字段提取
     std::vector<float> extract_odom_floats(const StreamSpec &s);
+    std::vector<float> extract_imu_floats (const StreamSpec &s);  // ✅ 新增
 
     // 定时调度
     void onTick();
 
 private:
-    // ===== UDP 网络 =====
+    // UDP
     int sock_fd_ = -1;
     struct sockaddr_in dest_addr_{};
     int base_tick_ms_ = 10;
     uint64_t seq_counter_ = 0;
     uint64_t tick_count_ = 0;
 
-    // ===== ROS 订阅 =====
+    // 订阅
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr     sub_imu_;   // ✅ 新增
 
-    // ===== 缓存与配置 =====
+    // 缓存与配置
     OdomCache odom_cache_;
+    ImuCache  imu_cache_;  // ✅ 新增
     FullConfig cfg_;
 
-    // ===== 定时器与运行时状态 =====
+    // 定时器与运行时
     rclcpp::TimerBase::SharedPtr timer_;
     std::vector<StreamRuntime> runtimes_;
 };
 
-// =================== 外部接口声明 ===================
-// 让 topic_extractors.cpp 可以调用
+// 供 topic 表调用
 std::vector<float> extract_odom(TelemetryStreamerNode* self, const StreamSpec& s);
+std::vector<float> extract_imu (TelemetryStreamerNode* self, const StreamSpec& s); // ✅ 新增

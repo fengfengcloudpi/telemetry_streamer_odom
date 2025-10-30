@@ -6,6 +6,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 # 👇 注意：这里我们并没有使用 find_package(tinyxml2 REQUIRED)
 # 因为你的环境没有 tinyxml2Config.cmake
@@ -25,6 +26,7 @@ ament_target_dependencies(telemetry_streamer_odom_node
     rclcpp
     nav_msgs
     ament_index_cpp
+    sensor_msgs
 )
 
 ### 4. 头文件搜索路径
