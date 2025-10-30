@@ -2,77 +2,96 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
-
-#include "telemetry_streamer_odom/config.hpp"
-#include "telemetry_streamer_odom/protocol.hpp"
-
-#include <mutex>
 #include <vector>
-#include <cstdint>
-#include <netinet/in.h>  // sockaddr_in
+#include <string>
+#include <mutex>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
-// 说明：
-// 这个类负责：
-//  - 订阅 /odom
-//  - 周期性按照配置打包遥测帧
-//  - 通过 UDP 发送
-//
-// 依赖的结构体 FullConfig / StreamSpec / StreamMapEntry / NetworkSpec
-// 已经在 config.hpp 中定义了。:contentReference[oaicite:1]{index=1}
+// =================== 配置结构体 ===================
+// 这些来自你的 config.hpp，如果你已有就保持一致
+
+struct FieldMapping {
+    std::string kind;   // "float" 等
+    int index;
+    std::string path;
+};
+
+struct StreamSpec {
+    int id;
+    std::string name;
+    std::string topic;
+    bool enable;
+    int period_ms;
+    int phase_ms;
+    int n_floats;
+    std::vector<FieldMapping> mappings;
+};
+
+struct NetworkSpec {
+    std::string dest_ip;
+    int port;
+    int base_tick_ms;
+};
+
+struct FullConfig {
+    NetworkSpec net;
+    std::vector<StreamSpec> streams;
+};
+
+// =================== 运行时结构 ===================
+
+struct StreamRuntime {
+    const StreamSpec* spec = nullptr;
+    int step = 1;
+    int offset = 0;
+    int template_ver = 1;
+};
+
+struct OdomCache {
+    std::mutex mtx;
+    nav_msgs::msg::Odometry last{};
+    bool has = false;
+};
+
+// =================== 主节点类 ===================
+
 class TelemetryStreamerNode : public rclcpp::Node
 {
 public:
-    // 构造：接收完整配置（含网络、streams 映射等）
     explicit TelemetryStreamerNode(const FullConfig &cfg);
+    ~TelemetryStreamerNode();
 
-    // 析构：关闭 UDP socket
-    ~TelemetryStreamerNode() override;
+    // ========== 新增声明 ==========
+    // 线程安全复制缓存
+    nav_msgs::msg::Odometry copyOdom();
 
-private:
-    // ===== 内部辅助结构 =====
-
-    // 缓存最近一次里程计消息，带互斥锁
-    struct OdomCache {
-        std::mutex mtx;
-        nav_msgs::msg::Odometry last;
-        bool has = false;
-    };
-
-    // 运行时的每条遥测流（对应 FullConfig::streams[i]）
-    // step/offset 用于决定该流在哪些 tick 上发送
-    struct StreamRuntime {
-        const StreamSpec *spec;   // 指向配置里的 stream
-        int step;                 // period_ms / base_tick_ms
-        int offset;               // phase_ms / base_tick_ms
-        uint16_t template_ver;    // 协议模板版本(目前写死=1)
-    };
-
-    // ===== 定时器触发函数 =====
-    // 全局 tick，每 base_tick_ms_ 触发一次
-    void onTick();
-
-    // 根据配置把 /odom 的字段拷到 float 槽位里，生成该流要发的浮点数组
+    // /odom 专用字段提取函数
     std::vector<float> extract_odom_floats(const StreamSpec &s);
 
-    // ===== 成员变量 =====
-
-    FullConfig cfg_;
-
-    // UDP发送
-    int sock_fd_{-1};
-    sockaddr_in dest_addr_{};  // 目标IP/端口
-
     // 定时调度
-    int base_tick_ms_{10};
-    uint64_t tick_count_{0};     // 全局tick计数
-    uint32_t seq_counter_{0};    // 发包自增序号
+    void onTick();
 
-    rclcpp::TimerBase::SharedPtr timer_;
+private:
+    // ===== UDP 网络 =====
+    int sock_fd_ = -1;
+    struct sockaddr_in dest_addr_{};
+    int base_tick_ms_ = 10;
+    uint64_t seq_counter_ = 0;
+    uint64_t tick_count_ = 0;
 
-    // /odom缓存和订阅
-    OdomCache odom_cache_;
+    // ===== ROS 订阅 =====
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_;
 
-    // 所有启用的流在运行期的调度信息
+    // ===== 缓存与配置 =====
+    OdomCache odom_cache_;
+    FullConfig cfg_;
+
+    // ===== 定时器与运行时状态 =====
+    rclcpp::TimerBase::SharedPtr timer_;
     std::vector<StreamRuntime> runtimes_;
 };
+
+// =================== 外部接口声明 ===================
+// 让 topic_extractors.cpp 可以调用
+std::vector<float> extract_odom(TelemetryStreamerNode* self, const StreamSpec& s);
