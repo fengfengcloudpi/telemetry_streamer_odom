@@ -2,6 +2,8 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include "telemetry_streamer_odom/config.hpp"
+#include "telemetry_streamer_odom/protocol.hpp"
 #include <sensor_msgs/msg/imu.hpp>          // ✅ 新增
 #include <vector>
 #include <string>
@@ -9,34 +11,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-// ---------------- 配置结构（保持你现有定义即可） ----------------
-struct FieldMapping {
-    std::string kind;   // "float", ...
-    int index;
-    std::string path;
-};
-
-struct StreamSpec {
-    int id;
-    std::string name;
-    std::string topic;
-    bool enable;
-    int period_ms;
-    int phase_ms;
-    int n_floats;
-    std::vector<FieldMapping> mappings;
-};
-
-struct NetworkSpec {
-    std::string dest_ip;
-    int port;
-    int base_tick_ms;
-};
-
-struct FullConfig {
-    NetworkSpec net;
-    std::vector<StreamSpec> streams;
-};
 
 // ---------------- 运行时结构 ----------------
 struct StreamRuntime {

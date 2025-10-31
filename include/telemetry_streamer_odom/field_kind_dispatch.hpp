@@ -5,14 +5,14 @@
 #include <vector>
 
 struct StreamSpec;
-struct FieldMapping;
+struct StreamMapEntry;
 class TelemetryStreamerNode;
 
 // kind = "float" | "int" | "bool"
 using FieldKindHandler = std::function<void(
     TelemetryStreamerNode* self,
     const StreamSpec& spec,
-    const FieldMapping& m,
+    const StreamMapEntry& m,
     std::vector<float>& out
 )>;
 

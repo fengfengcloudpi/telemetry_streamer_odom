@@ -7,7 +7,7 @@
 static void handle_float(
     TelemetryStreamerNode* self,
     const StreamSpec& s,
-    const FieldMapping& m,
+    const StreamMapEntry& m,
     std::vector<float>& out)
 {
     if (m.index < 0 || m.index >= s.n_floats) return;
