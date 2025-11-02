@@ -1,19 +1,21 @@
 #pragma once
 #include <unordered_map>
-#include <functional>
 #include <string>
 #include <vector>
+#include "telemetry_streamer_odom/config.hpp" // 提供 StreamSpec / StreamMapEntry
 
-struct StreamSpec;
-struct StreamMapEntry;
+namespace telemetry_streamer_odom {
+
 class TelemetryStreamerNode;
 
-// kind = "float" | "int" | "bool"
-using FieldKindHandler = std::function<void(
-    TelemetryStreamerNode* self,
-    const StreamSpec& spec,
-    const StreamMapEntry& m,
-    std::vector<float>& out
-)>;
+struct StreamBuffers {
+  std::vector<float> floats;
+  std::vector<int>   ints;
+};
+
+using FieldKindHandler =
+  void(*)(TelemetryStreamerNode*, const StreamSpec&, const StreamMapEntry&, StreamBuffers&);
 
 extern const std::unordered_map<std::string, FieldKindHandler> FIELD_KIND_MAP;
+
+} // namespace telemetry_streamer_odom

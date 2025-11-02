@@ -18,7 +18,8 @@ add_executable(telemetry_streamer_odom_node
     src/config.cpp
     src/telemetry_streamer_node.cpp
     src/field_kind_dispatch.cpp
-    src/topic_extractors.cpp
+    src/field_resolver.cpp
+    src/topic_registry.cpp
 )
 
 ### 3. ament 依赖（除了 tinyxml2 以外）

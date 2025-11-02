@@ -1,40 +1,38 @@
 #include "telemetry_streamer_odom/field_kind_dispatch.hpp"
+#include "telemetry_streamer_odom/field_resolver.hpp"
 #include "telemetry_streamer_odom/telemetry_streamer_node.hpp"
-#include "telemetry_streamer_odom/odom_fields.hpp"
-#include <cmath>
+#include <rclcpp/rclcpp.hpp>
 
-// float 类型字段提取
-static void handle_float(
-    TelemetryStreamerNode* self,
-    const StreamSpec& s,
-    const StreamMapEntry& m,
-    std::vector<float>& out)
-{
-    if (m.index < 0 || m.index >= s.n_floats) return;
+namespace telemetry_streamer_odom {
 
-    auto it = ODOM_FIELD_MAP.find(m.path);
-    if (it == ODOM_FIELD_MAP.end()) {
-        RCLCPP_WARN(self->get_logger(), "Unknown float field path: %s", m.path.c_str());
-        return;
-    }
-
-    auto msg_copy = self->copyOdom();  // 从缓存获取 odom
-
-    const auto &q = msg_copy.pose.pose.orientation;
-    float yaw = std::atan2(
-        2.0f * (q.w*q.z + q.x*q.y),
-        1.0f - 2.0f * (q.y*q.y + q.z*q.z)
-    );
-
-    out[m.index] = it->second(msg_copy, yaw);
+static void handle_float(TelemetryStreamerNode* self, const StreamSpec& s,
+                         const StreamMapEntry& m, StreamBuffers& bufs) {
+  if (m.index < 0 || m.index >= static_cast<int>(bufs.floats.size())) return;
+  auto acc = resolve_float_accessor(s.topic, m.path);
+  if (!acc) {
+    RCLCPP_WARN(self->get_logger(), "No float accessor for topic=%s path=%s",
+                s.topic.c_str(), m.path.c_str());
+    return;
+  }
+  bufs.floats[m.index] = (*acc)(self);
 }
 
-// 可扩展 int / bool 类型
-static void handle_int(...) {}
-static void handle_bool(...) {}
+static void handle_int(TelemetryStreamerNode* self, const StreamSpec& s,
+                       const StreamMapEntry& m, StreamBuffers& bufs) {
+  if (m.index < 0 || m.index >= static_cast<int>(bufs.ints.size())) return;
+  auto acc = resolve_int_accessor(s.topic, m.path);
+  if (!acc) {
+    RCLCPP_WARN(self->get_logger(), "No int accessor for topic=%s path=%s",
+                s.topic.c_str(), m.path.c_str());
+    return;
+  }
+  bufs.ints[m.index] = (*acc)(self);
+}
 
 const std::unordered_map<std::string, FieldKindHandler> FIELD_KIND_MAP = {
-    {"float", handle_float},
-    // {"int",   handle_int},
-    // {"bool",  handle_bool},
+  {"float", handle_float},
+  {"int",   handle_int},
+  // 以后需要可扩: {"bool", handle_bool}, {"double", ...}
 };
+
+} // namespace telemetry_streamer_odom

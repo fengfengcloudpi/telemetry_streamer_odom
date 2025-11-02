@@ -1,78 +1,73 @@
+// telemetry_streamer_node.hpp
 #pragma once
-
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
-#include "telemetry_streamer_odom/config.hpp"
-#include "telemetry_streamer_odom/protocol.hpp"
-#include <sensor_msgs/msg/imu.hpp>          // ✅ 新增
+#include <sensor_msgs/msg/imu.hpp>
+#include <mutex>
 #include <vector>
 #include <string>
-#include <mutex>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <utility>   // pair
+#include <cmath>     // floor/ceil/llround
+#include "telemetry_streamer_odom/config.hpp"
+#include "telemetry_streamer_odom/field_kind_dispatch.hpp"
 
+namespace telemetry_streamer_odom {
 
-// ---------------- 运行时结构 ----------------
-struct StreamRuntime {
-    const StreamSpec* spec = nullptr;
-    int step = 1;
-    int offset = 0;
-    int template_ver = 1;
+// 若仓库已有类似 RuntimeEntry/字段名，请保留原名，这里仅示例
+struct RuntimeEntry {
+  const StreamSpec* spec{nullptr};
+  uint32_t step{1};        // 基于 base_tick_ms_ 的步长
+  uint32_t offset{0};      // 相位（0..step-1）
+  uint16_t template_ver{1};
 };
 
-struct OdomCache {
-    std::mutex mtx;
-    nav_msgs::msg::Odometry last{};
-    bool has = false;
-};
-
-// ✅ 新增：IMU 缓存
-struct ImuCache {
-    std::mutex mtx;
-    sensor_msgs::msg::Imu last{};
-    bool has = false;
-};
-
-// ---------------- 主节点类 ----------------
-class TelemetryStreamerNode : public rclcpp::Node
-{
+class TelemetryStreamerNode : public rclcpp::Node {
 public:
-    explicit TelemetryStreamerNode(const FullConfig &cfg);
-    ~TelemetryStreamerNode();
+  explicit TelemetryStreamerNode(const FullConfig& cfg);
 
-    // 拷贝缓存
-    nav_msgs::msg::Odometry copyOdom();
-    sensor_msgs::msg::Imu   copyImu();    // ✅ 新增
+  void set_base_tick_ms(uint32_t ms);
 
-    // 字段提取
-    std::vector<float> extract_odom_floats(const StreamSpec &s);
-    std::vector<float> extract_imu_floats (const StreamSpec &s);  // ✅ 新增
+  nav_msgs::msg::Odometry copyOdom();
+  sensor_msgs::msg::Imu   copyImu();
 
-    // 定时调度
-    void onTick();
+  StreamBuffers extract_buffers(const StreamSpec& s);
+  void publish_stream(const StreamSpec& spec, const StreamBuffers& bufs);
 
 private:
-    // UDP
-    int sock_fd_ = -1;
-    struct sockaddr_in dest_addr_{};
-    int base_tick_ms_ = 10;
-    uint64_t seq_counter_ = 0;
-    uint64_t tick_count_ = 0;
+  void on_tick();
+  void build_runtimes_();
 
-    // 订阅
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_;
-    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr     sub_imu_;   // ✅ 新增
+  // —— 扫描周期折算（与仓库“扫描周期”一致的对齐点）——
+  enum class RoundingPolicy { Floor, Ceil, Nearest };
+  std::pair<uint32_t,uint32_t> compute_step_offset_scan_(
+      uint32_t period_ms,   // 每路扫描周期（优先 scan_period_ms）
+      uint32_t phase_ms,    // 每路扫描相位（优先 scan_phase_ms）
+      uint32_t base_tick_ms,// 扫描基准拍
+      RoundingPolicy policy // 取整策略：默认 Floor = 偏快不偏慢（与仓库原习惯一致）
+  ) const;
 
-    // 缓存与配置
-    OdomCache odom_cache_;
-    ImuCache  imu_cache_;  // ✅ 新增
-    FullConfig cfg_;
+  static uint32_t clamp_step_min1_(uint32_t v) { return v == 0 ? 1u : v; }
+  static uint32_t normalize_phase_(uint32_t off, uint32_t step) { return (step==0)?0:(off%step); }
 
-    // 定时器与运行时
-    rclcpp::TimerBase::SharedPtr timer_;
-    std::vector<StreamRuntime> runtimes_;
+private:
+  FullConfig config_;
+  std::vector<RuntimeEntry> runtimes_;
+
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr    imu_sub_;
+
+  rclcpp::TimerBase::SharedPtr timer_;
+  uint32_t base_tick_ms_{50};    // 扫描基准拍（默认 20Hz）
+  uint64_t tick_count_{0};
+  uint32_t seq_counter_{0};
+
+  int sock_fd_{-1};
+  sockaddr_in dest_addr_{};
+
+  std::mutex odom_mutex_;
+  std::mutex imu_mutex_;
+  nav_msgs::msg::Odometry last_odom_;
+  sensor_msgs::msg::Imu   last_imu_;
 };
 
-// 供 topic 表调用
-std::vector<float> extract_odom(TelemetryStreamerNode* self, const StreamSpec& s);
-std::vector<float> extract_imu (TelemetryStreamerNode* self, const StreamSpec& s); // ✅ 新增
+} // namespace telemetry_streamer_odom
