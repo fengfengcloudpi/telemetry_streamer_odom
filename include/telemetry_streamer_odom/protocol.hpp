@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <vector>
 #include <cstring>
+#include "telemetry_streamer_odom/config.hpp"
 
 // 协议常量
 static constexpr uint32_t UDP_MAGIC = 0xABCD1234;
@@ -61,7 +62,7 @@ inline PackedDatagram build_stream_frame(
     uint16_t template_ver,
     uint64_t ts_usec,
     uint32_t seq,
-    const std::vector<float>& floats
+    StreamBuffers tStreamBuffers
 ) {
     TemplateFrameHead tfh{};
     tfh.template_id   = template_id;
@@ -73,7 +74,7 @@ inline PackedDatagram build_stream_frame(
     tfh.lease_ms      = 0;
     tfh.remain        = 0; // 0=无限
     tfh.n_int         = 0;
-    tfh.n_float       = static_cast<uint16_t>(floats.size());
+    tfh.n_float       = static_cast<uint16_t>(tStreamBuffers.floats.size());
     tfh.n_str         = 0;
     tfh.throttle_hz   = 0;
     tfh.rsv           = 0;
@@ -81,7 +82,7 @@ inline PackedDatagram build_stream_frame(
     // TemplateFrameHead 后直接接 float[]
     uint16_t payload_len =
         static_cast<uint16_t>( sizeof(TemplateFrameHead)
-                             + floats.size()*sizeof(float) );
+                             + tStreamBuffers.floats.size()*sizeof(float) );
 
     UdpHdr hdr{};
     hdr.magic       = UDP_MAGIC;
@@ -103,24 +104,25 @@ inline PackedDatagram build_stream_frame(
     // copy TemplateFrameHead
     std::memcpy(out.bytes.data()+sizeof(hdr), &tfh, sizeof(tfh));
     // copy float payload
-    if (!floats.empty()) {
+    if (!tStreamBuffers.floats.empty()) {
         std::memcpy(
             out.bytes.data()+sizeof(hdr)+sizeof(tfh),
-            floats.data(),
-            floats.size()*sizeof(float)
+            tStreamBuffers.floats.data(),
+            tStreamBuffers.floats.size()*sizeof(float)
         );
     }
 
-    // 计算一个简单CRC并写回
-    uint32_t crc = fake_crc32(
-        out.bytes.data()+sizeof(uint32_t)+1, // 只是演示，真实项目请定义校验范围
-        out.bytes.size()-(sizeof(uint32_t)+1)
-    );
-    std::memcpy(
-        out.bytes.data()+offsetof(UdpHdr, crc32),
-        &crc,
-        sizeof(crc)
-    );
+      // copy float payload
+    if (!tStreamBuffers.ints.empty()) {
+        std::memcpy(
+            out.bytes.data()+sizeof(hdr)+sizeof(tfh)+tStreamBuffers.floats.size()*sizeof(float),
+            tStreamBuffers.ints.data(),
+            tStreamBuffers.ints.size()*sizeof(int)
+        );
+    }
 
     return out;
 }
+
+
+

@@ -3,10 +3,10 @@
 #include <algorithm>
 #include <chrono>
 
-extern StreamPacket build_stream_frame(
+extern PackedDatagram build_stream_frame(
     uint32_t stream_id, uint16_t template_ver,
     uint64_t ts_usec, uint32_t seq,
-    const std::vector<float>& floats);
+    StreamBuffers tStreamBuffers);
 
 namespace telemetry_streamer_odom {
 
@@ -134,6 +134,98 @@ void TelemetryStreamerNode::build_runtimes_() {
   }
 }
 
+
+StreamBuffers TelemetryStreamerNode::extract_buffers(const StreamSpec& s) {
+  StreamBuffers bufs;
+  bufs.floats.assign(std::max(0, s.n_floats), 0.0f);
+  bufs.ints.assign(std::max(0, s.n_ints), 0);
+  for (const auto& m : s.mappings) {
+    auto it = FIELD_KIND_MAP.find(m.kind);
+    if (it == FIELD_KIND_MAP.end()) {
+      RCLCPP_ERROR(this->get_logger(), "Unknown kind: %s", m.kind.c_str());
+      continue;
+    }
+    it->second(this, s, m, bufs);
+  }
+  return bufs;
+}
+
+nav_msgs::msg::Odometry TelemetryStreamerNode::copyOdom(const std::string& topic) {
+  std::lock_guard<std::mutex> lk(odom_mtx_);
+  auto it = last_odom_.find(topic);
+  if (it != last_odom_.end()) return it->second;
+  return nav_msgs::msg::Odometry{};
+}
+
+sensor_msgs::msg::Imu TelemetryStreamerNode::copyImu(const std::string& topic) {
+  std::lock_guard<std::mutex> lk(imu_mtx_);
+  auto it = last_imu_.find(topic);
+  if (it != last_imu_.end()) return it->second;
+  return sensor_msgs::msg::Imu{};
+}
+
+/*
+static inline void be_put_u16(std::vector<uint8_t>& b, uint16_t v) {
+  b.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+  b.push_back(static_cast<uint8_t>(v & 0xFF));
+}
+static inline void be_put_u32(std::vector<uint8_t>& b, uint32_t v) {
+  b.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
+  b.push_back(static_cast<uint8_t>((v >> 16) & 0xFF));
+  b.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+  b.push_back(static_cast<uint8_t>(v & 0xFF));
+}
+static inline void be_put_u64(std::vector<uint8_t>& b, uint64_t v) {
+  b.push_back(static_cast<uint8_t>((v >> 56) & 0xFF));
+  b.push_back(static_cast<uint8_t>((v >> 48) & 0xFF));
+  b.push_back(static_cast<uint8_t>((v >> 40) & 0xFF));
+  b.push_back(static_cast<uint8_t>((v >> 32) & 0xFF));
+  b.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
+  b.push_back(static_cast<uint8_t>((v >> 16) & 0xFF));
+  b.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+  b.push_back(static_cast<uint8_t>(v & 0xFF));
+}
+static inline void be_put_f32(std::vector<uint8_t>& b, float f) {
+  static_assert(sizeof(float)==4, "float not 32-bit");
+  uint32_t u;
+  std::memcpy(&u, &f, 4);
+  be_put_u32(b, u);
+}
+
+StreamPacket build_stream_frame(
+  uint32_t stream_id,
+  uint16_t template_ver,
+  uint64_t ts_usec,
+  uint32_t seq,
+  StreamBuffers tStreamBuffers)
+{
+  StreamPacket p;
+  auto& b = p.bytes;
+  b.reserve(32 + tStreamBuffers.floats.size()*4 + tStreamBuffers.ints.size()*4);
+
+  // header
+  b.push_back('T'); b.push_back('S'); b.push_back('O'); b.push_back('D'); // magic
+  b.push_back(2);   // ver
+  b.push_back(16);  // hdr extra size (bytes after magic/ver/hdrlen/reserved to counts), 16 just hint
+  be_put_u16(b, 0); // reserved
+
+  be_put_u32(b, stream_id);
+  be_put_u16(b, template_ver);
+  be_put_u32(b, seq);
+  be_put_u64(b, ts_usec);
+
+  be_put_u16(b, static_cast<uint16_t>(tStreamBuffers.floats.size()));
+  be_put_u16(b, static_cast<uint16_t>(tStreamBuffers.ints.size()));
+
+  // payload: floats then ints
+  for (float f : tStreamBuffers.floats) be_put_f32(b, f);
+  for (int v : tStreamBuffers.ints)     be_put_u32(b, static_cast<uint32_t>(v));
+
+  return p;
+}
+*/
+
+
 void TelemetryStreamerNode::on_tick()
 {
   tick_count_++;
@@ -154,7 +246,7 @@ void TelemetryStreamerNode::on_tick()
 
     // 旧帧格式只带 floats，沿用
     auto pkt = build_stream_frame(
-        s.id, rt.template_ver, ts_usec, seq_counter_++, bufs.floats);
+        s.id, rt.template_ver, ts_usec, seq_counter_++, bufs);
 
     ::sendto(sock_fd_,
              pkt.bytes.data(), pkt.bytes.size(),

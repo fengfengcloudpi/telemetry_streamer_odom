@@ -38,4 +38,9 @@ struct FullConfig {
     std::vector<StreamSpec> streams;
 };
 
+struct StreamBuffers {
+  std::vector<float> floats;
+  std::vector<int>   ints;
+};
+
 bool load_config_from_xml(const std::string& path, FullConfig& out_cfg);

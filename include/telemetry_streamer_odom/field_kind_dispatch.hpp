@@ -8,10 +8,6 @@ namespace telemetry_streamer_odom {
 
 class TelemetryStreamerNode;
 
-struct StreamBuffers {
-  std::vector<float> floats;
-  std::vector<int>   ints;
-};
 
 using FieldKindHandler =
   void(*)(TelemetryStreamerNode*, const StreamSpec&, const StreamMapEntry&, StreamBuffers&);
